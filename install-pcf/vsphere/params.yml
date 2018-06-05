@@ -206,21 +206,26 @@ nsx_username:                     # username for nsx access
 
 # nsx fields
 # leave nsx fields empty if you are not leveraging the nsx features for a given component
+# diego brain
 diego_brain_nsx_lb_edge_name:
 diego_brain_nsx_lb_pool_name:
 diego_brain_nsx_lb_port:
 diego_brain_nsx_lb_security_group:
 diego_brain_nsx_security_group:
+# pas mysql
 mysql_nsx_lb_edge_name:
 mysql_nsx_lb_pool_name:
 mysql_nsx_lb_port:
 mysql_nsx_lb_security_group:
 mysql_nsx_security_group:
+# go router
 router_nsx_lb_edge_name:
 router_nsx_lb_pool_name:
 router_nsx_lb_port:
+router_nsx_lb_monitor_port:
 router_nsx_lb_security_group:
 router_nsx_security_group:
+# tcp router
 tcp_router_nsx_lb_edge_name:
 tcp_router_nsx_lb_pool_name:
 tcp_router_nsx_lb_port:

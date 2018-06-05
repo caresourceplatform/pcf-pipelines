@@ -533,6 +533,7 @@ cf_resources=$(
     --arg router_nsx_lb_pool_name "${ROUTER_NSX_LB_POOL_NAME}" \
     --arg router_nsx_lb_security_group "${ROUTER_NSX_LB_SECURITY_GROUP}" \
     --arg router_nsx_lb_port "${ROUTER_NSX_LB_PORT}" \
+    --arg router_nsx_lb_monitor_port "${ROUTER_NSX_LB_MONITOR_PORT}" \
     --arg diego_brain_nsx_security_group "${DIEGO_BRAIN_NSX_SECURITY_GROUP}" \
     --arg diego_brain_nsx_lb_edge_name "${DIEGO_BRAIN_NSX_LB_EDGE_NAME}" \
     --arg diego_brain_nsx_lb_pool_name "${DIEGO_BRAIN_NSX_LB_POOL_NAME}" \
@@ -593,7 +594,8 @@ cf_resources=$(
             "edge_name": $router_nsx_lb_edge_name,
             "pool_name": $router_nsx_lb_pool_name,
             "security_group": $router_nsx_lb_security_group,
-            "port": $router_nsx_lb_port
+            "port": $router_nsx_lb_port,
+            "monitor_port": $router_nsx_lb_monitor_port
           }
         ]
       }
