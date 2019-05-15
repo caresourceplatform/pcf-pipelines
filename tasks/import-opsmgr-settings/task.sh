@@ -27,13 +27,14 @@ function main() {
   done
   printf '\n'
 
-  export OM_DECRYPTION_PASSPHRASE="${OPSMAN_PASSPHRASE}"
-
   om-linux --target "https://${OPSMAN_DOMAIN_OR_IP_ADDRESS}" \
+      --decryption-passphrase "${OPSMAN_PASSPHRASE}" \
       --skip-ssl-validation \
       --request-timeout 86400 \
       import-installation \
       --installation "${cwd}/opsmgr-settings/${OPSMAN_SETTINGS_FILENAME}"
  }
+
+ export OM_DECRYPTION_PASSPHRASE="${OPSMAN_PASSPHRASE}"
 
  main "${PWD}"
