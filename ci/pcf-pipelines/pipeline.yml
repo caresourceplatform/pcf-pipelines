@@ -1,3 +1,26 @@
+atc_creds: &atc_creds
+  ATC_EXTERNAL_URL: {{atc_external_url}}
+  ATC_BASIC_AUTH_USERNAME: {{fly_basic_auth_username}}
+  ATC_BASIC_AUTH_PASSWORD: {{fly_basic_auth_password}}
+  ATC_TEAM_NAME: {{atc_team_name}}
+
+vsphere_atc_creds: &vsphere_atc_creds
+  ATC_EXTERNAL_URL: {{atc_external_url}}
+  ATC_BASIC_AUTH_USERNAME: {{fly_basic_auth_username}}
+  ATC_BASIC_AUTH_PASSWORD: {{fly_basic_auth_password}}
+  ATC_TEAM_NAME: vsphere
+
+notify_slack: &notify_slack
+  put: slack
+  params:
+    text: "$BUILD_PIPELINE_NAME/$BUILD_JOB_NAME failed: $ATC_EXTERNAL_URL/builds/$BUILD_ID"
+
+norm-ci-locks-params: &norm-ci-locks-params
+  uri: git@github.com:pivotal-cf/norm-ci-locks.git
+  branch: master
+  private_key: {{locks_git_ssh_key}}
+  retry_delay: 1m
+
 groups:
 - name: all
   jobs:
@@ -33,22 +56,15 @@ groups:
   - set-rc-aws-install
   - wipe-aws
   - trigger-install-pcf-aws
-  - check-environments-complete
   - publish-release
-  - destroy-lre-gcp-upgrade-ops-manager
-  - set-lre-gcp-upgrade-ops-manager
-  - trigger-lre-gcp-upgrade-ops-manager
   - destroy-rc-gcp-upgrade-pas-tile
   - set-rc-gcp-upgrade-pas-tile
   - trigger-rc-gcp-upgrade-pas-tile
-  - lock-gcp-lre
-  - cleanup-gcp-lre
   - force-unlock-vsphere-install-pcf
   - force-unlock-gcp-install-pcf
   - force-unlock-gcp-install-pcf
   - force-unlock-azure-install-pcf
   - force-unlock-aws-install-pcf
-  - force-unlock-lre-gcp-upgrade-opsman
   - force-unlock-vsphere-offline-install-pcf
   - final-wipe-vsphere
   - final-wipe-aws
@@ -62,7 +78,6 @@ groups:
   - force-unlock-gcp-install-pcf
   - force-unlock-azure-install-pcf
   - force-unlock-aws-install-pcf
-  - force-unlock-lre-gcp-upgrade-opsman
 - name: vsphere
   jobs:
   - force-unlock-vsphere-install-pcf
@@ -72,7 +87,6 @@ groups:
   - wipe-vsphere
   - trigger-install-pcf-vsphere
   - final-wipe-vsphere
-  - check-environments-complete
 - name: offline
   jobs:
   - force-unlock-vsphere-offline-install-pcf
@@ -95,7 +109,6 @@ groups:
   - set-rc-gcp-upgrade-pas-tile
   - trigger-rc-gcp-upgrade-pas-tile
   - final-wipe-gcp
-  - check-environments-complete
 - name: azure
   jobs:
   - force-unlock-azure-install-pcf
@@ -105,7 +118,6 @@ groups:
   - wipe-azure
   - trigger-install-pcf-azure
   - final-wipe-azure
-  - check-environments-complete
 - name: aws
   jobs:
   - force-unlock-aws-install-pcf
@@ -115,16 +127,7 @@ groups:
   - wipe-aws
   - trigger-install-pcf-aws
   - final-wipe-aws
-  - check-environments-complete
-- name: upgrade-lre-gcp
-  jobs:
-  - set-lre-gcp-upgrade-ops-manager
-  - destroy-lre-gcp-upgrade-ops-manager
-  - trigger-lre-gcp-upgrade-ops-manager
-  - lock-gcp-lre
-  - check-environments-complete
-  - force-unlock-lre-gcp-upgrade-opsman
-  - cleanup-gcp-lre
+
 
 resource_types:
 - name: smuggler
@@ -166,7 +169,7 @@ resources:
   source:
     commands:
       check: |
-        curl https://registry.hub.docker.com/v1/repositories/pcfnorm/rootfs/tags | jq -r .[].name | grep "^v" | sort -V > ${SMUGGLER_OUTPUT_DIR}/versions
+        curl https://registry.hub.docker.com/v1/repositories/pcfnorm/rootfs/tags | jq -r .[].name | grep "^[0-9]" | sort -V > ${SMUGGLER_OUTPUT_DIR}/versions
       in: |
         echo "${SMUGGLER_VERSION_ID}" > ${SMUGGLER_DESTINATION_DIR}/${SMUGGLER_target_file}
     target_file: tag
@@ -252,8 +255,9 @@ jobs:
 - name: force-unlock-vsphere-offline-install-pcf
   serial: true
   plan:
-  - get: vsphere-offline-lock
-    passed: [ lock-vsphere-offline ]
+  - try:
+      get: vsphere-offline-lock
+      passed: [ lock-vsphere-offline ]
   - try:
       put: vsphere-offline-lock
       params: {release: vsphere-offline-lock}
@@ -261,8 +265,9 @@ jobs:
 - name: force-unlock-vsphere-install-pcf
   serial: true
   plan:
-  - get: vsphere-lock
-    passed: [ lock-vsphere ]
+  - try:
+      get: vsphere-lock
+      passed: [ lock-vsphere ]
   - try:
       put: vsphere-lock
       params: {release: vsphere-lock}
@@ -270,8 +275,9 @@ jobs:
 - name: force-unlock-gcp-install-pcf
   serial: true
   plan:
-  - get: gcp-lock
-    passed: [ lock-gcp ]
+  - try:
+      get: gcp-lock
+      passed: [ lock-gcp ]
   - try:
       put: gcp-lock
       params: {release: gcp-lock}
@@ -279,8 +285,9 @@ jobs:
 - name: force-unlock-azure-install-pcf
   serial: true
   plan:
-  - get: azure-lock
-    passed: [ lock-azure ]
+  - try:
+      get: azure-lock
+      passed: [ lock-azure ]
   - try:
       put: azure-lock
       params: {release: azure-lock}
@@ -288,20 +295,12 @@ jobs:
 - name: force-unlock-aws-install-pcf
   serial: true
   plan:
-  - get: aws-lock
-    passed: [ lock-aws ]
+  - try:
+      get: aws-lock
+      passed: [ lock-aws ]
   - try:
       put: aws-lock
       params: {release: aws-lock}
-
-- name: force-unlock-lre-gcp-upgrade-opsman
-  serial: true
-  plan:
-  - get: gcp-lock
-    passed: [ lock-gcp-lre ]
-  - try:
-      put: gcp-lock
-      params: {release: gcp-lock}
 
 
 - name: bump-patch
@@ -504,6 +503,7 @@ jobs:
     params:
       <<: *vsphere_atc_creds
       JOBS: |
+        rc-vsphere-install/deploy-opsman
         rc-vsphere-install/deploy-ert
   on_failure:
     <<: *notify_slack
@@ -653,6 +653,7 @@ jobs:
     params:
       <<: *atc_creds
       JOBS: |
+        rc-gcp-install/configure-director
         rc-gcp-install/deploy-ert
   on_failure:
     <<: *notify_slack
@@ -781,134 +782,6 @@ jobs:
 
 ####### END GCP upgrade tile
 ####### END GCP
-
-####### GCP LRE
-- name: lock-gcp-lre
-  serial: true
-  plan:
-  - aggregate:
-    - get: pivnet-rc
-      passed: [test-rc]
-      trigger: true
-    - get: pcf-pipelines
-      passed: [test-rc]
-    - get: rootfs-tag
-      passed: [test-rc]
-  - put: gcp-lock
-    params: { claim: lre-gcp }
-    timeout: 3h00m
-
-- name: destroy-lre-gcp-upgrade-ops-manager
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-      passed: [ lock-gcp-lre ]
-    - get: gcp-lock
-      passed: [lock-gcp-lre]
-      trigger: true
-    - get: pivnet-rc
-      passed: [ lock-gcp-lre ]
-    - get: rootfs-tag
-      passed: [ lock-gcp-lre ]
-  - task: destroy-rc-gcp-install
-    params:
-      PIPELINE_NAME: lre-gcp-upgrade-ops-manager
-      <<: *atc_creds
-    file: pcf-pipelines/ci/tasks/destroy_pipeline.yml
-  on_failure:
-    <<: *notify_slack
-
-- name: set-lre-gcp-upgrade-ops-manager
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-      passed: [ destroy-lre-gcp-upgrade-ops-manager ]
-    - get: gcp-lock
-      passed: [destroy-lre-gcp-upgrade-ops-manager]
-      trigger: true
-    - get: pivnet-rc
-      passed: [ destroy-lre-gcp-upgrade-ops-manager ]
-    - get: rootfs-tag
-      passed: [ destroy-lre-gcp-upgrade-ops-manager ]
-  - task: unpack-rc
-    file: pcf-pipelines/ci/tasks/unpack_tarball.yml
-    input_mapping: { tarball: pivnet-rc }
-    output_mapping: { unpacked_tarball: release }
-  - task: set-rc-gcp-install
-    params:
-      PIPELINE_PARAMS: {{rc_lre_gcp_upgrade_ops_manager_params}}
-      PIPELINE_NAME: lre-gcp-upgrade-ops-manager
-      PIPELINE_PATH: release/pcf-pipelines/upgrade-ops-manager/gcp/pipeline.yml
-      <<: *atc_creds
-    file: pcf-pipelines/ci/tasks/set_pipeline.yml
-  - task: unpause-rc-gcp-install
-    params:
-      PIPELINE_NAME: lre-gcp-upgrade-ops-manager
-      <<: *atc_creds
-    file: pcf-pipelines/ci/tasks/unpause_pipeline.yml
-  on_failure:
-    <<: *notify_slack
-
-- name: trigger-lre-gcp-upgrade-ops-manager
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-      passed: [ set-lre-gcp-upgrade-ops-manager ]
-    - get: gcp-lock
-      passed: [ set-lre-gcp-upgrade-ops-manager ]
-      trigger: true
-    - get: pivnet-rc
-      passed: [ set-lre-gcp-upgrade-ops-manager ]
-    - get: rootfs-tag
-      passed: [ set-lre-gcp-upgrade-ops-manager ]
-  - task: trigger-opsman
-    file: pcf-pipelines/tasks/trigger-jobs/task.yml
-    params:
-      <<: *atc_creds
-      JOBS: |
-        lre-gcp-upgrade-ops-manager/upgrade-opsmgr
-  on_failure:
-    <<: *notify_slack
-
-- name: cleanup-gcp-lre
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-      passed: [ trigger-lre-gcp-upgrade-ops-manager ]
-      trigger: true
-    - get: gcp-lock
-      passed: [ trigger-lre-gcp-upgrade-ops-manager ]
-    - get: pivnet-rc
-      passed: [ trigger-lre-gcp-upgrade-ops-manager ]
-    - get: rootfs-tag
-      passed: [ trigger-lre-gcp-upgrade-ops-manager ]
-
-
-  - task: cleanup-upgraded-opsmanagers
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source:
-          repository: google/cloud-sdk
-      params:
-        GCP_SERVICE_ACCOUNT_KEY: {{gcp_service_account_key}}
-      run:
-        path: bash
-        args:
-        - -c
-        - |
-          set -eu
-
-          gcloud auth activate-service-account --key-file <(echo "$GCP_SERVICE_ACCOUNT_KEY")
-          gcloud compute instances list --filter="lre AND ops-man AND TERMINATED" | \
-            awk 'NR > 1
-              {
-                system("gcloud compute instances delete --delete-disks=all " $1 " --quiet --zone " $2)
-              }'
-
-
-####### END GCP LRE
 
 ####### Azure
 
@@ -1197,98 +1070,31 @@ jobs:
 
 ####### END AWS
 
-- name: check-environments-complete
-  serial: true
-  plan:
-  - aggregate:
-    - get: pcf-pipelines
-      passed:
-      - trigger-install-pcf-vsphere
-      - trigger-install-pcf-azure
-      - trigger-install-pcf-aws
-      - trigger-install-pcf-gcp
-      - trigger-lre-gcp-upgrade-ops-manager
-    - get: pivnet-rc
-      passed:
-      - trigger-install-pcf-vsphere
-      - trigger-install-pcf-azure
-      - trigger-install-pcf-aws
-      - trigger-install-pcf-gcp
-      - trigger-lre-gcp-upgrade-ops-manager
-      trigger: true
-    - get: rootfs-tag
-      passed:
-      - trigger-install-pcf-vsphere
-      - trigger-install-pcf-azure
-      - trigger-install-pcf-aws
-      - trigger-install-pcf-gcp
-      - trigger-lre-gcp-upgrade-ops-manager
-  - aggregate:
-    - do:
-      - task: check-lre-gcp-upgrade-ops-manager
-        file: pcf-pipelines/ci/tasks/check-environments/task.yml
-        params:
-          PIPELINE: lre-gcp-upgrade-ops-manager
-          JOB: upgrade-opsmgr
-          TIMEOUT_MINUTES: 240
-          DISABLE_PIVNET_VERSION_CHECK: false
-          <<: *atc_creds
-      - get: lre-gcp-lock
-        resource: gcp-lock
-        passed: [trigger-lre-gcp-upgrade-ops-manager]
-      - try:
-          put: lre-gcp-lock
-          resource: gcp-lock
-          params: {release: lre-gcp-lock}
-    - do:
-      - task: check-gcp
-        file: pcf-pipelines/ci/tasks/check-environments/task.yml
-        params:
-          PIPELINE: rc-gcp-install
-          JOB: deploy-ert
-          TIMEOUT_MINUTES: 240
-          DISABLE_PIVNET_VERSION_CHECK: false
-          <<: *atc_creds
-    - do:
-      - task: check-vsphere
-        file: pcf-pipelines/ci/tasks/check-environments/task.yml
-        params:
-          PIPELINE: rc-vsphere-install
-          JOB: deploy-ert
-          TIMEOUT_MINUTES: 240
-          DISABLE_PIVNET_VERSION_CHECK: false
-          <<: *vsphere_atc_creds
-    - do:
-      - task: check-azure
-        file: pcf-pipelines/ci/tasks/check-environments/task.yml
-        params:
-          PIPELINE: rc-azure-install
-          JOB: deploy-ert
-          TIMEOUT_MINUTES: 240
-          DISABLE_PIVNET_VERSION_CHECK: false
-          <<: *atc_creds
-    - do:
-      - task: check-aws
-        file: pcf-pipelines/ci/tasks/check-environments/task.yml
-        params:
-          PIPELINE: rc-aws-install
-          JOB: deploy-ert
-          TIMEOUT_MINUTES: 240
-          DISABLE_PIVNET_VERSION_CHECK: false
-          <<: *atc_creds
-
 - name: publish-release
   serial_groups: [version]
   plan:
   - aggregate:
+    - get: fly
     - get: version
       params: {bump: final}
     - get: pcf-pipelines
-      passed: [check-environments-complete]
+      passed:
+      - trigger-install-pcf-vsphere
+      - trigger-install-pcf-azure
+      - trigger-install-pcf-aws
+      - trigger-install-pcf-gcp
     - get: pivnet-rc
-      passed: [check-environments-complete]
-    - get: fly
+      passed:
+      - trigger-install-pcf-vsphere
+      - trigger-install-pcf-azure
+      - trigger-install-pcf-aws
+      - trigger-install-pcf-gcp
     - get: rootfs-tag
+      passed:
+      - trigger-install-pcf-vsphere
+      - trigger-install-pcf-azure
+      - trigger-install-pcf-aws
+      - trigger-install-pcf-gcp
   - task: create-release
     file: pcf-pipelines/ci/tasks/create-release/task.yml
     params:
@@ -1521,26 +1327,3 @@ jobs:
   on_failure:
     <<: *notify_slack
 ####### END VSPHERE OFFLINE
-
-atc_creds: &atc_creds
-  ATC_EXTERNAL_URL: {{atc_external_url}}
-  ATC_BASIC_AUTH_USERNAME: {{fly_basic_auth_username}}
-  ATC_BASIC_AUTH_PASSWORD: {{fly_basic_auth_password}}
-  ATC_TEAM_NAME: {{atc_team_name}}
-
-vsphere_atc_creds: &vsphere_atc_creds
-  ATC_EXTERNAL_URL: {{atc_external_url}}
-  ATC_BASIC_AUTH_USERNAME: {{fly_basic_auth_username}}
-  ATC_BASIC_AUTH_PASSWORD: {{fly_basic_auth_password}}
-  ATC_TEAM_NAME: vsphere
-
-notify_slack: &notify_slack
-  put: slack
-  params:
-    text: "$BUILD_PIPELINE_NAME/$BUILD_JOB_NAME failed: $ATC_EXTERNAL_URL/builds/$BUILD_ID"
-
-norm-ci-locks-params: &norm-ci-locks-params
-  uri: git@github.com:pivotal-cf/norm-ci-locks.git
-  branch: master
-  private_key: {{locks_git_ssh_key}}
-  retry_delay: 1m
