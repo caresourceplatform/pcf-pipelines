@@ -28,7 +28,6 @@ function main() {
   printf '\n'
 
   om-linux --target "https://${OPSMAN_DOMAIN_OR_IP_ADDRESS}" \
-      --decryption-passphrase $OPSMAN_PASSPHRASE \
       --skip-ssl-validation \
       --request-timeout 86400 \
       import-installation \
