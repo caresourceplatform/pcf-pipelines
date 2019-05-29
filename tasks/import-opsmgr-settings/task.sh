@@ -31,9 +31,8 @@ function main() {
       --skip-ssl-validation \
       --request-timeout 86400 \
       import-installation \
+      --decryption-passphrase "${OPSMAN_PASSPHRASE}" \
       --installation "${cwd}/opsmgr-settings/${OPSMAN_SETTINGS_FILENAME}"
  }
-
- export OM_DECRYPTION_PASSPHRASE=$OPSMAN_PASSPHRASE
 
  main "${PWD}"
